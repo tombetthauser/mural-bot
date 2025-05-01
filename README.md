@@ -1,3 +1,3 @@
-# Math Bot
+# Mural Bot
 
-An experiment in vibe coding a new version of an old homework-generating python script I built to generate printable pages with random math problems.
+Old project moved to current repo. Splits upload image into grid based on desired width or height or both. Basic outlining feature or full color. For use in enlarging images for murals. Printed images to be used as references or directly adhered to mural surface.
