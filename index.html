@@ -1,256 +1,448 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Split Image into Custom Pixel Squares</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <meta charset="UTF-8" />
+  <title>Enlarged Image Printable PDF Generator</title>
+  <style>
+    /* body {
+      font-family: Arial, sans-serif;
+      margin: 1em;
+      background: #f0f0f0;
+    }
+    label, input, button {
+      font-size: 1rem;
+      margin: 0.5em 0;
+    }
+    input[type="number"], input[type="range"] {
+      width: 6em;
+    }
+    input[type="color"] {
+      width: 4em;
+      height: 2em;
+      vertical-align: middle;
+      margin-left: 0.5em;
+      border: none;
+      padding: 0;
+    } */
+    #previewContainer {
+      /* margin-top: 1em; */
+      /* background: white; */
+      /* padding: 10px; */
+      /* border: 1px solid #ccc; */
+      /* max-width: 100%;
+      max-height: 400px; */
+      /* overflow: auto; */
+    }
+    #previewCanvas {
+      width: 90%;
+      max-width: 600px;
+      height: auto;
+      display: block;
+      margin: 0 auto;
+    }
+    input {
+      margin-bottom: 10px;
+    }
+  </style>
 </head>
 <body>
-  <!--  -->
-  <h1>Split Image into Custom Pixel Squares</h1>
 
-  <input type="file" id="upload" accept="image/*">
-  <br><br>
-  Width: <input type="number" id="pieceWidth" value="25" min="1"> px
-  Height: <input type="number" id="pieceHeight" value="25" min="1"> px
-  <br><br>
-  Desired Total Width: <input type="number" id="desiredWidthFeet" step="0.01" min="0"> feet
-  <br><br>
-  Desired Total Width Inches: <input type="number" id="desiredWidthInches" step="0.01" min="0"> inches
-  <br><br>
-  <input type="checkbox" id="bwMode"> Black & White mode
-  <input type="checkbox" id="outlineMode"> Outline mode (Coloring Book)
-  <br><br>
-  Brightness: <input type="range" id="brightness" min="-100" max="100" value="0">
-  <br><br>
-  <button id="setFeetByInchesButton">Set Feet by Inches</button>
-  <button id="setPixelsButton">Set Pixels Horizontal</button>
-  <button id="setPixelsVerticalButton">Set Pixels Vertical</button>
-  <button id="splitButton">Split and Download PNG</button>
-  <button id="splitJPGButton">Split and Download JPG</button>
-  <button id="splitPDFButton">Split and Download PDF</button>
-  <button id="showDimensionsButton">Show Image Dimensions</button>
-  <p id="dimensionsDisplay"></p>
+<h1>Mural Bot 🤖 🎨</h1>
+<p>Enlarged Image Printable PDF Generator... Select an image, set the width for the size you want it to be, posterize it or make an outline-only version for use as a mural template, adjust the brightness and contrast if you want, print it out as a PDF, cut out and tape the prited image sections together for a big version of your original image. 100% vibe coded sort of. Primarily for use as a personal studio tool for making murals and giant book report / coloring book / math worksheets etc for my kid.</p>
 
-  <canvas id="canvas" style="display:none;"></canvas>
+<a href="http://tombetthauser.com" target="_blank">http://tombetthauser.com</a>
+<br />
+<br />
 
-  <script>
-    const upload = document.getElementById('upload');
-    const splitButton = document.getElementById('splitButton');
-    const splitJPGButton = document.getElementById('splitJPGButton');
-    const splitPDFButton = document.getElementById('splitPDFButton');
-    const showDimensionsButton = document.getElementById('showDimensionsButton');
-    const setPixelsButton = document.getElementById('setPixelsButton');
-    const setPixelsVerticalButton = document.getElementById('setPixelsVerticalButton');
-    const setFeetByInchesButton = document.getElementById('setFeetByInchesButton');
-    const bwMode = document.getElementById('bwMode');
-    const outlineMode = document.getElementById('outlineMode');
-    const brightnessSlider = document.getElementById('brightness');
-    const dimensionsDisplay = document.getElementById('dimensionsDisplay');
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    const pieceWidthInput = document.getElementById('pieceWidth');
-    const pieceHeightInput = document.getElementById('pieceHeight');
-    const desiredWidthFeetInput = document.getElementById('desiredWidthFeet');
-    const desiredWidthInchesInput = document.getElementById('desiredWidthInches');
-    let img = new Image();
+<label>Upload Image:</label><br />
+<input type="file" id="imageInput" accept="image/*" /><br />
 
-    function applyBrightness(ctx, width, height, adjustment) {
-      const imgData = ctx.getImageData(0, 0, width, height);
-      const data = imgData.data;
-      for (let i = 0; i < data.length; i += 4) {
-        data[i] += adjustment;
-        data[i+1] += adjustment;
-        data[i+2] += adjustment;
-      }
-      ctx.putImageData(imgData, 0, 0);
+<label>Desired width (inches):</label><br />
+<input type="number" id="widthInput" min="1" step="0.1" value="8" /><br />
+
+<label>Desired height (inches) (optional):</label><br />
+<input type="number" id="heightInput" min="0.1" step="0.1" placeholder="Leave blank to maintain aspect ratio" /><br />
+
+<label>Brightness (-100 to 100):</label><br />
+<input type="range" id="brightnessSlider" min="-100" max="100" step="1" value="0" /><br />
+
+<label>Contrast (-100 to 100):</label><br />
+<input type="range" id="contrastSlider" min="-100" max="100" step="1" value="0" /><br />
+
+<label>
+  <input type="checkbox" id="cutLinesCheckbox" />
+  Add cut lines to left and top edges
+  <input type="color" id="cutLineColor" value="#888888" title="Cut line color" disabled />
+</label><br />
+
+<label>
+  <input type="checkbox" id="outerEdgeCheckbox" />
+  Add cut lines to outer right and bottom edges
+</label><br />
+
+<label>
+  <input type="checkbox" id="posterizeCheckbox" />
+  Posterize image
+</label>
+<label>
+  Colors:
+  <input type="number" id="posterizeColors" min="2" max="256" step="1" value="8" disabled />
+</label><br />
+
+<label>
+  <input type="checkbox" id="outlineCheckbox" />
+  Add black outlines to posterized image (white background)
+</label><br />
+
+<button id="generateBtn" disabled>Generate PDF</button>
+
+<div id="previewContainer" aria-label="Image preview">
+  <canvas id="previewCanvas"></canvas>
+</div>
+
+<script>
+(() => {
+  const DPI = 96;
+  const PAGE_WIDTH_IN = 8.5;
+  const PAGE_HEIGHT_IN = 11;
+  const MARGIN_IN = 0.5;
+
+  const imageInput = document.getElementById('imageInput');
+  const widthInput = document.getElementById('widthInput');
+  const heightInput = document.getElementById('heightInput');
+  const brightnessSlider = document.getElementById('brightnessSlider');
+  const contrastSlider = document.getElementById('contrastSlider');
+  const cutLinesCheckbox = document.getElementById('cutLinesCheckbox');
+  const cutLineColorInput = document.getElementById('cutLineColor');
+  const outerEdgeCheckbox = document.getElementById('outerEdgeCheckbox');
+  const posterizeCheckbox = document.getElementById('posterizeCheckbox');
+  const posterizeColorsInput = document.getElementById('posterizeColors');
+  const outlineCheckbox = document.getElementById('outlineCheckbox');
+  const generateBtn = document.getElementById('generateBtn');
+  const previewCanvas = document.getElementById('previewCanvas');
+
+  let originalImage = null;
+
+  // Enable/disable inputs based on checkboxes
+  cutLinesCheckbox.addEventListener('change', () => {
+    cutLineColorInput.disabled = !cutLinesCheckbox.checked;
+  });
+  posterizeCheckbox.addEventListener('change', () => {
+    posterizeColorsInput.disabled = !posterizeCheckbox.checked;
+    if (!posterizeCheckbox.checked) {
+      outlineCheckbox.checked = false;
+      outlineCheckbox.disabled = true;
+    } else {
+      outlineCheckbox.disabled = false;
     }
+  });
 
-    function applyBW(ctx, width, height) {
-      const imgData = ctx.getImageData(0, 0, width, height);
-      const data = imgData.data;
-      for (let i = 0; i < data.length; i += 4) {
-        const avg = (data[i] + data[i+1] + data[i+2]) / 3;
-        data[i] = data[i+1] = data[i+2] = avg;
-      }
-      ctx.putImageData(imgData, 0, 0);
+  // Load image
+  imageInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) {
+      originalImage = null;
+      generateBtn.disabled = true;
+      clearPreview();
+      return;
     }
-
-    function applyOutline(ctx, width, height) {
-      applyBrightness(ctx, width, height, parseInt(brightnessSlider.value, 10));
-      const imgData = ctx.getImageData(0, 0, width, height);
-      const data = imgData.data;
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-          const i = (y * width + x) * 4;
-          const avg = (data[i] + data[i+1] + data[i+2]) / 3;
-          data[i] = data[i+1] = data[i+2] = avg;
-        }
-      }
-      ctx.putImageData(imgData, 0, 0);
-
-      const outlineData = ctx.getImageData(0, 0, width, height);
-      const outData = outlineData.data;
-      for (let y = 0; y < height - 1; y++) {
-        for (let x = 0; x < width - 1; x++) {
-          const i = (y * width + x) * 4;
-          const diff = Math.abs(outData[i] - outData[i + 4]) + Math.abs(outData[i] - outData[i + width * 4]);
-          const edge = diff > 50 ? 0 : 255;
-          outData[i] = outData[i+1] = outData[i+2] = edge;
-        }
-      }
-      ctx.putImageData(outlineData, 0, 0);
-    }
-
-    function splitAndDownload(format, asPDF = false) {
-      if (!img.src) {
-        alert('Please upload an image first.');
-        return;
-      }
-
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const img = new Image();
       img.onload = () => {
-        const width = img.width;
-        const height = img.height;
-        const pieceWidth = parseInt(pieceWidthInput.value, 10);
-        const pieceHeight = parseInt(pieceHeightInput.value, 10);
+        originalImage = img;
+        generateBtn.disabled = false;
+        updatePreview();
+      };
+      img.src = evt.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
 
-        if (pieceWidth <= 0 || pieceHeight <= 0) {
-          alert('Piece width and height must be greater than 0.');
-          return;
+  // On sliders or inputs change update preview
+  [widthInput, heightInput, brightnessSlider, contrastSlider, posterizeCheckbox, posterizeColorsInput, outlineCheckbox].forEach(el => {
+    el.addEventListener('input', () => {
+      if (originalImage) updatePreview();
+    });
+  });
+
+  function clearPreview() {
+    const ctx = previewCanvas.getContext('2d');
+    ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+  }
+
+  function applyBrightnessContrast(imgData, brightness, contrast) {
+    // brightness: -100 to 100
+    // contrast: -100 to 100
+    const data = imgData.data;
+    const b = brightness / 100 * 255;
+    const c = contrast / 100;
+    // Contrast formula adapted:
+    // factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+    const factor = (259 * (c * 255 + 255)) / (255 * (259 - c * 255));
+
+    for (let i = 0; i < data.length; i += 4) {
+      // Apply brightness and contrast per channel
+      for(let j=0; j<3; j++) {
+        let val = data[i+j];
+        val = factor * (val - 128) + 128 + b;
+        data[i+j] = Math.min(255, Math.max(0, val));
+      }
+    }
+    return imgData;
+  }
+
+  function posterizeCanvas(canvas, numColors) {
+    const ctx = canvas.getContext('2d');
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imgData.data;
+
+    const levels = Math.round(Math.cbrt(numColors));
+    const step = Math.floor(256 / levels);
+
+    for (let i = 0; i < data.length; i += 4) {
+      data[i]   = Math.floor(data[i] / step) * step;
+      data[i+1] = Math.floor(data[i+1] / step) * step;
+      data[i+2] = Math.floor(data[i+2] / step) * step;
+    }
+
+    ctx.putImageData(imgData, 0, 0);
+  }
+
+  function addOutlinesToCanvas(canvas, convertToBlackAndWhite = false) {
+    const ctx = canvas.getContext('2d');
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imgData.data;
+    const w = canvas.width;
+    const h = canvas.height;
+
+    const outlines = new Uint8ClampedArray(w * h);
+    for (let y = 1; y < h - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        const i = (y * w + x) * 4;
+        const gray = i =>
+          0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+
+        const gx = gray(i - 4) - gray(i + 4);
+        const gy = gray(i - w * 4) - gray(i + w * 4);
+        const mag = Math.sqrt(gx * gx + gy * gy);
+        if (mag > 40) outlines[y * w + x] = 255;
+      }
+    }
+
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4;
+        if (outlines[y * w + x] === 255) {
+          data[i] = data[i+1] = data[i+2] = 0; // black line
+          data[i+3] = 255;
+        } else if (convertToBlackAndWhite) {
+          data[i] = data[i+1] = data[i+2] = 255; // white background
+          data[i+3] = 255;
         }
+      }
+    }
 
-        canvas.width = width;
-        canvas.height = height;
-        ctx.drawImage(img, 0, 0);
+    ctx.putImageData(imgData, 0, 0);
+  }
 
-        let row = 1;
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF();
-        let firstPage = true;
+  function updatePreview() {
+    if (!originalImage) return;
 
-        for (let y = 0; y < height; y += pieceHeight, row++) {
-          let col = 1;
-          for (let x = 0; x < width; x += pieceWidth, col++) {
-            const pieceCanvas = document.createElement('canvas');
-            const pieceCtx = pieceCanvas.getContext('2d');
-            pieceCanvas.width = pieceWidth;
-            pieceCanvas.height = pieceHeight;
+    const desiredWidthIn = parseFloat(widthInput.value);
+    if (isNaN(desiredWidthIn) || desiredWidthIn <= 0) return;
 
-            pieceCtx.fillStyle = 'white';
-            pieceCtx.fillRect(0, 0, pieceWidth, pieceHeight);
+    let desiredHeightIn = null;
+    if (heightInput.value.trim() !== '') {
+      desiredHeightIn = parseFloat(heightInput.value);
+      if (isNaN(desiredHeightIn) || desiredHeightIn <= 0) return;
+    }
 
-            const drawWidth = Math.min(pieceWidth, width - x);
-            const drawHeight = Math.min(pieceHeight, height - y);
+    const brightness = parseInt(brightnessSlider.value);
+    const contrast = parseInt(contrastSlider.value);
+    const posterizeEnabled = posterizeCheckbox.checked;
+    const numPosterColors = parseInt(posterizeColorsInput.value) || 8;
+    const outlineEnabled = outlineCheckbox.checked;
 
-            pieceCtx.drawImage(canvas, x, y, drawWidth, drawHeight, 0, 0, drawWidth, drawHeight);
+    const desiredWidthPx = desiredWidthIn * DPI;
+    const desiredHeightPx = desiredHeightIn
+      ? desiredHeightIn * DPI
+      : desiredWidthPx * (originalImage.height / originalImage.width);
 
-            if (outlineMode.checked) {
-              applyOutline(pieceCtx, pieceWidth, pieceHeight);
-            } else {
-              if (bwMode.checked) {
-                applyBW(pieceCtx, pieceWidth, pieceHeight);
-              }
-              const brightnessAdjustment = parseInt(brightnessSlider.value, 10);
-              if (brightnessAdjustment !== 0) {
-                applyBrightness(pieceCtx, pieceWidth, pieceHeight, brightnessAdjustment);
-              }
+    // Resize canvas for preview but limit size max 800 px width for performance & UI
+    const previewMaxWidth = 800;
+    let previewWidth = desiredWidthPx;
+    let previewHeight = desiredHeightPx;
+    if (previewWidth > previewMaxWidth) {
+      const scale = previewMaxWidth / previewWidth;
+      previewWidth = previewMaxWidth;
+      previewHeight = previewHeight * scale;
+    }
+
+    previewCanvas.width = Math.round(previewWidth);
+    previewCanvas.height = Math.round(previewHeight);
+    const ctx = previewCanvas.getContext('2d');
+
+    ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+    ctx.drawImage(originalImage, 0, 0, previewCanvas.width, previewCanvas.height);
+
+    // Apply brightness/contrast on preview image
+    let imgData = ctx.getImageData(0, 0, previewCanvas.width, previewCanvas.height);
+    imgData = applyBrightnessContrast(imgData, brightness, contrast);
+    ctx.putImageData(imgData, 0, 0);
+
+    // Apply posterize & outline on preview if enabled
+    if (posterizeEnabled) {
+      posterizeCanvas(previewCanvas, numPosterColors);
+      if (outlineEnabled) {
+        addOutlinesToCanvas(previewCanvas, true);
+      }
+    }
+  }
+
+  generateBtn.addEventListener('click', () => {
+    if (!originalImage) return alert('Please upload an image first.');
+
+    const desiredWidthIn = parseFloat(widthInput.value);
+    if (isNaN(desiredWidthIn) || desiredWidthIn <= 0) {
+      return alert('Enter a valid width in inches.');
+    }
+
+    let desiredHeightIn = null;
+    if (heightInput.value.trim() !== '') {
+      desiredHeightIn = parseFloat(heightInput.value);
+      if (isNaN(desiredHeightIn) || desiredHeightIn <= 0) {
+        return alert('Enter a valid height in inches or leave blank.');
+      }
+    }
+
+    const cutLinesEnabled = cutLinesCheckbox.checked;
+    const outerEdgesEnabled = outerEdgeCheckbox.checked;
+    const cutLineColor = cutLineColorInput.value || '#888888';
+    const posterizeEnabled = posterizeCheckbox.checked;
+    const numPosterColors = parseInt(posterizeColorsInput.value) || 8;
+    const outlineEnabled = outlineCheckbox.checked;
+    const brightness = parseInt(brightnessSlider.value);
+    const contrast = parseInt(contrastSlider.value);
+
+    const desiredWidthPx = desiredWidthIn * DPI;
+    const desiredHeightPx = desiredHeightIn
+      ? desiredHeightIn * DPI
+      : desiredWidthPx * (originalImage.height / originalImage.width);
+
+    const resizedCanvas = document.createElement('canvas');
+    resizedCanvas.width = desiredWidthPx;
+    resizedCanvas.height = desiredHeightPx;
+    const resizedCtx = resizedCanvas.getContext('2d');
+    resizedCtx.drawImage(originalImage, 0, 0, resizedCanvas.width, resizedCanvas.height);
+
+    // Apply brightness & contrast
+    let imgData = resizedCtx.getImageData(0, 0, resizedCanvas.width, resizedCanvas.height);
+    imgData = applyBrightnessContrast(imgData, brightness, contrast);
+    resizedCtx.putImageData(imgData, 0, 0);
+
+    // Posterize and outlines
+    if (posterizeEnabled) {
+      posterizeCanvas(resizedCanvas, numPosterColors);
+      if (outlineEnabled) {
+        addOutlinesToCanvas(resizedCanvas, true);
+      }
+    }
+
+    // Page size in pixels minus margins
+    const printableWidthPx = (PAGE_WIDTH_IN - 2 * MARGIN_IN) * DPI;
+    const printableHeightPx = (PAGE_HEIGHT_IN - 2 * MARGIN_IN) * DPI;
+    const cols = Math.ceil(desiredWidthPx / printableWidthPx);
+    const rows = Math.ceil(desiredHeightPx / printableHeightPx);
+
+    const pages = [];
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const sx = col * printableWidthPx;
+        const sy = row * printableHeightPx;
+        const sw = Math.min(printableWidthPx, desiredWidthPx - sx);
+        const sh = Math.min(printableHeightPx, desiredHeightPx - sy);
+
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = printableWidthPx;
+        pageCanvas.height = printableHeightPx;
+        const ctx = pageCanvas.getContext('2d');
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+
+        ctx.drawImage(resizedCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
+
+        const isRightMost = col === cols - 1;
+        const isBottomMost = row === rows - 1;
+
+        if (cutLinesEnabled || outerEdgesEnabled) {
+          ctx.strokeStyle = cutLineColor;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+
+          if (cutLinesEnabled) {
+            ctx.moveTo(0, 1);
+            ctx.lineTo(sw, 1);
+            ctx.moveTo(1, 0);
+            ctx.lineTo(1, sh);
+          }
+
+          if (outerEdgesEnabled) {
+            if (isRightMost) {
+              ctx.moveTo(sw - 1, 0);
+              ctx.lineTo(sw - 1, sh);
             }
-
-            if (asPDF) {
-              const imgData = pieceCanvas.toDataURL('image/jpeg', 1.0);
-              if (!firstPage) pdf.addPage();
-              pdf.addImage(imgData, 'JPEG', 10, 10, 190, 277);
-              firstPage = false;
-            } else {
-              const link = document.createElement('a');
-              link.download = `img1-row${row}-col${col}.${format}`;
-              link.href = pieceCanvas.toDataURL(`image/${format}`);
-              link.click();
+            if (isBottomMost) {
+              ctx.moveTo(0, sh - 1);
+              ctx.lineTo(sw, sh - 1);
             }
           }
+
+          ctx.stroke();
         }
 
-        if (asPDF) {
-          pdf.save('split_images.pdf');
-        }
-      }
-
-      if (img.complete) {
-        img.onload();
+        pages.push(pageCanvas);
       }
     }
 
-    upload.addEventListener('change', (event) => {
-      const file = event.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-      }
+    const printWindow = window.open('', '_blank');
+    const style = `
+      <style>
+        @page {
+          size: ${PAGE_WIDTH_IN}in ${PAGE_HEIGHT_IN}in;
+          margin: ${MARGIN_IN}in;
+        }
+        body {
+          margin: 0;
+          padding: 0;
+          -webkit-print-color-adjust: exact;
+        }
+        .page {
+          page-break-after: always;
+          width: ${PAGE_WIDTH_IN - 2 * MARGIN_IN}in;
+          height: ${PAGE_HEIGHT_IN - 2 * MARGIN_IN}in;
+        }
+        img {
+          width: 100%;
+          display: block;
+        }
+      </style>
+    `;
+    let bodyHTML = '';
+    pages.forEach((canvas) => {
+      const url = canvas.toDataURL('image/png');
+      bodyHTML += `<div class="page"><img src="${url}" /></div>`;
     });
 
-    setFeetByInchesButton.addEventListener('click', () => {
-      const inches = parseFloat(desiredWidthInchesInput.value);
-      if (isNaN(inches) || inches <= 0) {
-        alert('Please enter a valid desired width in inches.');
-        return;
-      }
-      const feet = (inches / 12).toFixed(2);
-      desiredWidthFeetInput.value = feet;
-    });
+    printWindow.document.write(`<!DOCTYPE html><html><head><title>Print</title>${style}</head><body>${bodyHTML}</body></html>`);
+    printWindow.document.close();
+    printWindow.onload = () => {
+      printWindow.focus();
+      printWindow.print();
+    };
+  });
+})();
+</script>
 
-    setPixelsButton.addEventListener('click', () => {
-      const desiredFeet = parseFloat(desiredWidthFeetInput.value);
-      if (!img.src || isNaN(desiredFeet) || desiredFeet <= 0) {
-        alert('Please upload an image and enter a valid desired width in feet.');
-        return;
-      }
-
-      const totalInches = desiredFeet * 12;
-      const numPages = totalInches / 11;
-      const pixelWidth = Math.ceil(img.width / numPages);
-      const pixelHeight = Math.ceil((pixelWidth * 8.5) / 11);
-
-      pieceWidthInput.value = pixelWidth;
-      pieceHeightInput.value = pixelHeight;
-    });
-
-    setPixelsVerticalButton.addEventListener('click', () => {
-      const desiredFeet = parseFloat(desiredWidthFeetInput.value);
-      if (!img.src || isNaN(desiredFeet) || desiredFeet <= 0) {
-        alert('Please upload an image and enter a valid desired width in feet.');
-        return;
-      }
-
-      const totalInches = desiredFeet * 12;
-      const numPages = totalInches / 8.5;
-      const pixelWidth = Math.ceil(img.height / numPages);
-      const pixelHeight = Math.ceil((pixelWidth * 11) / 8.5);
-
-      pieceWidthInput.value = pixelWidth;
-      pieceHeightInput.value = pixelHeight;
-    });
-
-    splitButton.addEventListener('click', () => splitAndDownload('png'));
-    splitJPGButton.addEventListener('click', () => splitAndDownload('jpeg'));
-    splitPDFButton.addEventListener('click', () => splitAndDownload('jpeg', true));
-
-    showDimensionsButton.addEventListener('click', () => {
-      if (!img.src) {
-        alert('Please upload an image first.');
-        return;
-      }
-
-      if (img.complete) {
-        dimensionsDisplay.textContent = `Image Dimensions: ${img.width} x ${img.height} pixels`;
-      } else {
-        img.onload = () => {
-          dimensionsDisplay.textContent = `Image Dimensions: ${img.width} x ${img.height} pixels`;
-        };
-      }
-    });
-  </script>
 </body>
 </html>
